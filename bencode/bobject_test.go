@@ -84,8 +84,8 @@ func TestBObject_Bencode(t *testing.T) {
 				"a": bencode.GetBObject("test"),
 				"b": bencode.GetBObject(1),
 			}),
-			expected: "d1:a4:test1:zi1ee", // 按键排序后 a -> z
-			wantLen:  len("d1:a4:test1:zi1ee"),
+			expected: "d1:a4:test1:bi1ee",
+			wantLen:  len("d1:a4:test1:bi1ee"),
 		},
 	}
 

@@ -106,7 +106,7 @@ var intDecodeTests = []IntDecodeCase{
 	// 错误用例
 	{Encoded: "i1a0e", Err: bencode.ErrInvalidIntFormat}, // 非法字符
 	{Encoded: "ie", Err: bencode.ErrInvalidIntFormat},    // 空数字
-	{Encoded: "i123", Err: io.EOF},                       // 缺少终止符
+	{Encoded: "i123", Err: io.ErrUnexpectedEOF},          // 缺少终止符
 	{Encoded: "123e", Err: bencode.ErrInvalidIntFormat},  // 缺少前缀i
 }
 
