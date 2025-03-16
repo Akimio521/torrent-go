@@ -113,7 +113,7 @@ func (o *BObject) Bencode(w io.Writer) (int, error) {
 	return wLen, nil
 }
 
-func GetBOject[T allowedTypes](v T) *BObject {
+func GetBObject[T allowedTypes](v T) *BObject {
 	return &BObject{
 		t: getBType[T](),
 		v: v,
@@ -134,13 +134,13 @@ func Parse(r io.Reader) (*BObject, error) {
 		if err != nil {
 			return nil, err
 		}
-		ret = GetBOject(val)
+		ret = GetBObject(val)
 	case b[0] == 'i': // 整数类型
 		val, err := DecodeInt(br)
 		if err != nil {
 			return nil, err
 		}
-		ret = GetBOject(val)
+		ret = GetBObject(val)
 	case b[0] == 'l': // 列表类型
 		br.ReadByte() // 读取 "l"
 		var val []*BObject
@@ -155,7 +155,7 @@ func Parse(r io.Reader) (*BObject, error) {
 			}
 			val = append(val, elem)
 		}
-		ret = GetBOject(val)
+		ret = GetBObject(val)
 	case b[0] == 'd': // 字典类型
 		br.ReadByte() // 读取 "d"
 		dict := make(map[string]*BObject)
@@ -174,7 +174,7 @@ func Parse(r io.Reader) (*BObject, error) {
 			}
 			dict[key] = val
 		}
-		ret = GetBOject(dict)
+		ret = GetBObject(dict)
 	default:
 		return nil, ErrInvalidBObject
 	}

@@ -154,13 +154,13 @@ func TestBObject_Bencode(t *testing.T) {
 		// -------------------- 字符串类型测试 --------------------
 		{
 			name:     "BSTR normal",
-			obj:      bencode.GetBOject("hello"),
+			obj:      bencode.GetBObject("hello"),
 			expected: "5:hello",
 			wantLen:  7, // len("5:hello") = 6 + 1 (bufio flush?)
 		},
 		{
 			name:     "BSTR empty",
-			obj:      bencode.GetBOject(""),
+			obj:      bencode.GetBObject(""),
 			expected: "0:",
 			wantLen:  2,
 		},
@@ -168,19 +168,19 @@ func TestBObject_Bencode(t *testing.T) {
 		// -------------------- 整数类型测试 --------------------
 		{
 			name:     "BINT positive",
-			obj:      bencode.GetBOject(42),
+			obj:      bencode.GetBObject(42),
 			expected: "i42e",
 			wantLen:  4,
 		},
 		{
 			name:     "BINT zero",
-			obj:      bencode.GetBOject(0),
+			obj:      bencode.GetBObject(0),
 			expected: "i0e",
 			wantLen:  3,
 		},
 		{
 			name:     "BINT negative",
-			obj:      bencode.GetBOject(-123),
+			obj:      bencode.GetBObject(-123),
 			expected: "i-123e",
 			wantLen:  6,
 		},
@@ -188,15 +188,15 @@ func TestBObject_Bencode(t *testing.T) {
 		// -------------------- 列表类型测试 --------------------
 		{
 			name:     "BLIST empty",
-			obj:      bencode.GetBOject([]*bencode.BObject{}),
+			obj:      bencode.GetBObject([]*bencode.BObject{}),
 			expected: "le",
 			wantLen:  2,
 		},
 		{
 			name: "BLIST mixed types",
-			obj: bencode.GetBOject([]*bencode.BObject{
-				bencode.GetBOject("abc"),
-				bencode.GetBOject(123),
+			obj: bencode.GetBObject([]*bencode.BObject{
+				bencode.GetBObject("abc"),
+				bencode.GetBObject(123),
 			}),
 			expected: "l3:abci123ee",
 			wantLen:  len("l3:abci123ee"),
@@ -205,15 +205,15 @@ func TestBObject_Bencode(t *testing.T) {
 		// -------------------- 字典类型测试 --------------------
 		{
 			name:     "BDICT empty",
-			obj:      bencode.GetBOject(map[string]*bencode.BObject{}),
+			obj:      bencode.GetBObject(map[string]*bencode.BObject{}),
 			expected: "de",
 			wantLen:  2,
 		},
 		{
 			name: "BDICT sorted keys",
-			obj: bencode.GetBOject(map[string]*bencode.BObject{
-				"a": bencode.GetBOject("test"),
-				"b": bencode.GetBOject(1),
+			obj: bencode.GetBObject(map[string]*bencode.BObject{
+				"a": bencode.GetBObject("test"),
+				"b": bencode.GetBObject(1),
 			}),
 			expected: "d1:a4:test1:zi1ee", // 按键排序后 a -> z
 			wantLen:  len("d1:a4:test1:zi1ee"),
@@ -239,11 +239,11 @@ func TestBObject_Bencode(t *testing.T) {
 
 // 辅助函数创建复杂对象
 func createNestedList() *bencode.BObject {
-	return bencode.GetBOject(
+	return bencode.GetBObject(
 		[]*bencode.BObject{
-			bencode.GetBOject(
+			bencode.GetBObject(
 				map[string]*bencode.BObject{
-					"id": bencode.GetBOject(123),
+					"id": bencode.GetBObject(123),
 				},
 			),
 		},
@@ -286,28 +286,28 @@ func TestParse(t *testing.T) {
 			name:  "BSTR basic",
 			input: "3:foo",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject("foo")
+				return bencode.GetBObject("foo")
 			},
 		},
 		{
 			name:  "BINT positive",
 			input: "i42e",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject(42)
+				return bencode.GetBObject(42)
 			},
 		},
 		{
 			name:  "BINT negative",
 			input: "i-123e",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject(-123)
+				return bencode.GetBObject(-123)
 			},
 		},
 		{
 			name:  "BINT zero",
 			input: "i0e",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject(0)
+				return bencode.GetBObject(0)
 			},
 		},
 
@@ -316,17 +316,17 @@ func TestParse(t *testing.T) {
 			name:  "BLIST empty",
 			input: "le",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject([]*bencode.BObject{})
+				return bencode.GetBObject([]*bencode.BObject{})
 			},
 		},
 		{
 			name:  "BLIST nested",
 			input: "li42el3:abcee",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject([]*bencode.BObject{
-					bencode.GetBOject(42),
-					bencode.GetBOject([]*bencode.BObject{
-						bencode.GetBOject("abc"),
+				return bencode.GetBObject([]*bencode.BObject{
+					bencode.GetBObject(42),
+					bencode.GetBObject([]*bencode.BObject{
+						bencode.GetBObject("abc"),
 					}),
 				})
 			},
@@ -335,9 +335,9 @@ func TestParse(t *testing.T) {
 			name:  "BDICT ordered keys",
 			input: "d1:ai1e1:zi2ee",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject(map[string]*bencode.BObject{
-					"a": bencode.GetBOject(1),
-					"z": bencode.GetBOject(2),
+				return bencode.GetBObject(map[string]*bencode.BObject{
+					"a": bencode.GetBObject(1),
+					"z": bencode.GetBObject(2),
 				})
 			},
 		},
@@ -345,14 +345,14 @@ func TestParse(t *testing.T) {
 			name:  "BDICT nested",
 			input: "d4:infod6:lengthi1024e5:filesld4:pathl3:dir8:file.txteeeee",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject(map[string]*bencode.BObject{
-					"info": bencode.GetBOject(map[string]*bencode.BObject{
-						"length": bencode.GetBOject(1024),
-						"files": bencode.GetBOject([]*bencode.BObject{
-							bencode.GetBOject(map[string]*bencode.BObject{
-								"path": bencode.GetBOject([]*bencode.BObject{
-									bencode.GetBOject("dir"),
-									bencode.GetBOject("file.txt"),
+				return bencode.GetBObject(map[string]*bencode.BObject{
+					"info": bencode.GetBObject(map[string]*bencode.BObject{
+						"length": bencode.GetBObject(1024),
+						"files": bencode.GetBObject([]*bencode.BObject{
+							bencode.GetBObject(map[string]*bencode.BObject{
+								"path": bencode.GetBObject([]*bencode.BObject{
+									bencode.GetBObject("dir"),
+									bencode.GetBObject("file.txt"),
 								}),
 							}),
 						}),
@@ -381,9 +381,9 @@ func TestParse(t *testing.T) {
 			name:  "Unordered dict keys",
 			input: "d1:zi2e1:ai1ee",
 			expected: func() *bencode.BObject {
-				return bencode.GetBOject(map[string]*bencode.BObject{
-					"a": bencode.GetBOject(1),
-					"z": bencode.GetBOject(2),
+				return bencode.GetBObject(map[string]*bencode.BObject{
+					"a": bencode.GetBObject(1),
+					"z": bencode.GetBObject(2),
 				})
 			},
 		},
