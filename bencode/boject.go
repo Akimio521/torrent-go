@@ -115,3 +115,64 @@ func GetBOject[T allowedTypes](v T) *BObject {
 		v: v,
 	}
 }
+
+func Parse(r io.Reader) (*BObject, error) {
+	br := bufio.NewReader(r)
+
+	b, err := br.Peek(1)
+	if err != nil {
+		return nil, err
+	}
+	var ret *BObject
+	switch {
+	case b[0] >= '0' && b[0] <= '9': // 字符串类型
+		val, err := DecodeString(br)
+		if err != nil {
+			return nil, err
+		}
+		ret = GetBOject(val)
+	case b[0] == 'i': // 整数类型
+		val, err := DecodeInt(br)
+		if err != nil {
+			return nil, err
+		}
+		ret = GetBOject(val)
+	case b[0] == 'l': // 列表类型
+		br.ReadByte() // 读取 "l"
+		var val []*BObject
+		for {
+			if p, _ := br.Peek(1); p[0] == 'e' {
+				br.ReadByte() // 读取 "e"
+				break
+			}
+			elem, err := Parse(br)
+			if err != nil {
+				return nil, err
+			}
+			val = append(val, elem)
+		}
+		ret = GetBOject(val)
+	case b[0] == 'd': // 字典类型
+		br.ReadByte() // 读取 "d"
+		dict := make(map[string]*BObject)
+		for {
+			if p, _ := br.Peek(1); p[0] == 'e' {
+				br.ReadByte() // 读取 "e"
+				break
+			}
+			key, err := DecodeString(br)
+			if err != nil {
+				return nil, err
+			}
+			val, err := Parse(br)
+			if err != nil {
+				return nil, err
+			}
+			dict[key] = val
+		}
+		ret = GetBOject(dict)
+	default:
+		return nil, ErrInvalidBObject
+	}
+	return ret, nil
+}
