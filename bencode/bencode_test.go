@@ -139,3 +139,136 @@ func TestDecodeInt(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------- BObject 编码测试 ----------------------
+func TestBObject_Bencode(t *testing.T) {
+	// 测试用例结构
+	testCases := []struct {
+		name     string
+		obj      *bencode.BObject
+		expected string
+		wantLen  int
+		wantErr  error
+	}{
+		// -------------------- 字符串类型测试 --------------------
+		{
+			name:     "BSTR normal",
+			obj:      bencode.GetBOject("hello"),
+			expected: "5:hello",
+			wantLen:  7, // len("5:hello") = 6 + 1 (bufio flush?)
+		},
+		{
+			name:     "BSTR empty",
+			obj:      bencode.GetBOject(""),
+			expected: "0:",
+			wantLen:  2,
+		},
+
+		// -------------------- 整数类型测试 --------------------
+		{
+			name:     "BINT positive",
+			obj:      bencode.GetBOject(42),
+			expected: "i42e",
+			wantLen:  4,
+		},
+		{
+			name:     "BINT zero",
+			obj:      bencode.GetBOject(0),
+			expected: "i0e",
+			wantLen:  3,
+		},
+		{
+			name:     "BINT negative",
+			obj:      bencode.GetBOject(-123),
+			expected: "i-123e",
+			wantLen:  6,
+		},
+
+		// -------------------- 列表类型测试 --------------------
+		{
+			name:     "BLIST empty",
+			obj:      bencode.GetBOject([]*bencode.BObject{}),
+			expected: "le",
+			wantLen:  2,
+		},
+		{
+			name: "BLIST mixed types",
+			obj: bencode.GetBOject([]*bencode.BObject{
+				bencode.GetBOject("abc"),
+				bencode.GetBOject(123),
+			}),
+			expected: "l3:abci123ee",
+			wantLen:  len("l3:abci123ee"),
+		},
+
+		// -------------------- 字典类型测试 --------------------
+		{
+			name:     "BDICT empty",
+			obj:      bencode.GetBOject(map[string]*bencode.BObject{}),
+			expected: "de",
+			wantLen:  2,
+		},
+		{
+			name: "BDICT sorted keys",
+			obj: bencode.GetBOject(map[string]*bencode.BObject{
+				"a": bencode.GetBOject("test"),
+				"b": bencode.GetBOject(1),
+			}),
+			expected: "d1:a4:test1:zi1ee", // 按键排序后 a -> z
+			wantLen:  len("d1:a4:test1:zi1ee"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			gotLen, err := tc.obj.Bencode(buf)
+
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.wantLen, gotLen)
+			require.Equal(t, tc.expected, buf.String())
+		})
+	}
+}
+
+// 辅助函数创建复杂对象
+func createNestedList() *bencode.BObject {
+	return bencode.GetBOject(
+		[]*bencode.BObject{
+			bencode.GetBOject(
+				map[string]*bencode.BObject{
+					"id": bencode.GetBOject(123),
+				},
+			),
+		},
+	)
+}
+
+func TestNestedStructures(t *testing.T) {
+	// 测试嵌套结构
+	testCases := []struct {
+		name     string
+		obj      *bencode.BObject
+		expected string
+	}{
+		{
+			name:     "Nested list-dict",
+			obj:      createNestedList(),
+			expected: "ld2:idi123eee",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := bytes.NewBuffer(nil)
+			_, err := tc.obj.Bencode(buf)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, buf.String())
+		})
+	}
+}
