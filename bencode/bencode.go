@@ -37,6 +37,9 @@ func DecodeString(r io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if num < 0 {
+		return "", ErrStringLength
+	}
 
 	if b, err := br.ReadByte(); err != nil {
 		return "", err
