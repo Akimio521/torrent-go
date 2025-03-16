@@ -43,6 +43,10 @@ func getBType[T allowedTypes]() BType {
 	}
 }
 
+func (o *BObject) GetBType() BType {
+	return o.t
+}
+
 // 将 BObject 编码写入 Writer 中，返回写入的字节长度
 func (o *BObject) Bencode(w io.Writer) (int, error) {
 	bw := bufio.NewWriter(w)
