@@ -284,26 +284,42 @@ func validateBObject(t *testing.T, expected, actual *bencode.BObject) {
 
 	switch expected.GetBType() {
 	case bencode.BSTR:
-		ev, _ := bencode.Get[string](expected)
-		av, _ := bencode.Get[string](actual)
+		var (
+			ev string
+			av string
+		)
+		bencode.GetValue(expected, &ev)
+		bencode.GetValue(actual, &av)
 		require.Equal(t, ev, av)
 
 	case bencode.BINT:
-		ev, _ := bencode.Get[int](expected)
-		av, _ := bencode.Get[int](actual)
+		var (
+			ev int
+			av int
+		)
+		bencode.GetValue(expected, &ev)
+		bencode.GetValue(actual, &av)
 		require.Equal(t, ev, av)
 
 	case bencode.BLIST:
-		elist, _ := bencode.Get[[]*bencode.BObject](expected)
-		alist, _ := bencode.Get[[]*bencode.BObject](actual)
+		var (
+			elist []*bencode.BObject
+			alist []*bencode.BObject
+		)
+		bencode.GetValue(expected, &elist)
+		bencode.GetValue(actual, &alist)
 		require.Equal(t, len(elist), len(alist))
 		for i := range elist {
 			validateBObject(t, elist[i], alist[i])
 		}
 
 	case bencode.BDICT:
-		edict, _ := bencode.Get[map[string]*bencode.BObject](expected)
-		adict, _ := bencode.Get[map[string]*bencode.BObject](actual)
+		var (
+			edict map[string]*bencode.BObject
+			adict map[string]*bencode.BObject
+		)
+		bencode.GetValue(expected, &edict)
+		bencode.GetValue(actual, &adict)
 		require.Equal(t, len(edict), len(adict))
 		for k, ev := range edict {
 			av, exists := adict[k]
@@ -324,7 +340,8 @@ func TestEdgeCases(t *testing.T) {
 		input := "i9223372036854775807e" // math.MaxInt64
 		obj, err := bencode.Parse(strings.NewReader(input))
 		require.NoError(t, err)
-		val, err := bencode.Get[int](obj)
+		var val int
+		err = bencode.GetValue(obj, &val)
 		require.NoError(t, err)
 		require.Equal(t, 9223372036854775807, val)
 	})

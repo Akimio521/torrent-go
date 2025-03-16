@@ -10,20 +10,22 @@ type BObject struct {
 	v any   // 值
 }
 
-// Get 根据泛型类型 T 返回对应的值，并进行类型检查
-// Get 泛型函数（包级函数）
-func Get[T allowedTypes](o *BObject) (T, error) {
+func (o *BObject) GetBType() BType {
+	return o.t
+}
+
+// Get 根据泛型类型 T 返回对应的值，
+func GetValue[T allowedTypes](o *BObject, dest *T) error {
 	expectedType := getBType[T]()
 	if o.t != expectedType {
-		var zeroVal T
-		return zeroVal, ErrBType
+		return ErrBType
 	}
-	val, ok := o.v.(T)
-	if !ok {
-		var zeroVal T
-		return zeroVal, ErrBType
+	var ok = false
+
+	if *dest, ok = o.v.(T); !ok {
+		return ErrBType
 	}
-	return val, nil
+	return nil
 }
 
 // 类型映射函数
@@ -43,10 +45,6 @@ func getBType[T allowedTypes]() BType {
 	}
 }
 
-func (o *BObject) GetBType() BType {
-	return o.t
-}
-
 // 将 BObject 编码写入 Writer 中，返回写入的字节长度
 func (o *BObject) Bencode(w io.Writer) (int, error) {
 	bw := bufio.NewWriter(w)
@@ -54,8 +52,8 @@ func (o *BObject) Bencode(w io.Writer) (int, error) {
 	wLen := 0
 	switch o.t {
 	case BSTR:
-		str, err := Get[string](o)
-		if err != nil {
+		var str string
+		if err := GetValue(o, &str); err != nil {
 			return 0, err
 		}
 		n, err := EncodeString(bw, str)
@@ -64,19 +62,19 @@ func (o *BObject) Bencode(w io.Writer) (int, error) {
 		}
 		wLen += n
 	case BINT:
-		str, err := Get[int](o)
-		if err != nil {
+		var num int
+		if err := GetValue(o, &num); err != nil {
 			return 0, err
 		}
-		n, err := EncodeInt(bw, str)
+		n, err := EncodeInt(bw, num)
 		if err != nil {
 			return 0, err
 		}
 		wLen += n
 	case BLIST:
 		bw.WriteByte('l')
-		list, err := Get[[]*BObject](o)
-		if err != nil {
+		var list []*BObject
+		if err := GetValue(o, &list); err != nil {
 			return 0, err
 		}
 		for _, elem := range list {
@@ -90,7 +88,8 @@ func (o *BObject) Bencode(w io.Writer) (int, error) {
 		wLen += 2 // 一个是"l"一个是"e"
 	case BDICT:
 		bw.WriteByte('d')
-		dict, err := Get[map[string]*BObject](o)
+		var dict map[string]*BObject
+		err := GetValue(o, &dict)
 		if err != nil {
 			return 0, nil
 		}

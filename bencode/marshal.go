@@ -21,23 +21,24 @@ func Unmarshal(r io.Reader, s any) error {
 
 	switch o.GetBType() {
 	case BLIST:
-		list, err := Get[[]*BObject](o)
-		if err != nil {
+		var list []*BObject
+		if err := GetValue(o, &list); err != nil {
 			return err
 		}
+
 		l := reflect.MakeSlice(p.Elem().Type(), len(list), len(list))
 		p.Elem().Set(l)
-		err = unmarshalList(p, list)
-		if err != nil {
+
+		if err = unmarshalList(p, list); err != nil {
 			return err
 		}
 	case BDICT:
-		dict, err := Get[map[string]*BObject](o)
-		if err != nil {
+		var dict map[string]*BObject
+		if err := GetValue(o, &dict); err != nil {
 			return err
 		}
-		err = unmarshalDict(p, dict)
-		if err != nil {
+
+		if err = unmarshalDict(p, dict); err != nil {
 			return err
 		}
 	default:
@@ -58,24 +59,24 @@ func unmarshalList(p reflect.Value, list []*BObject) error {
 	switch list[0].GetBType() {
 	case BSTR:
 		for i, o := range list {
-			val, err := Get[string](o)
-			if err != nil {
+			var val string
+			if err := GetValue(o, &val); err != nil {
 				return err
 			}
 			v.Index(i).SetString(val)
 		}
 	case BINT:
 		for i, o := range list {
-			val, err := Get[int](o)
-			if err != nil {
+			var val int
+			if err := GetValue(o, &val); err != nil {
 				return err
 			}
 			v.Index(i).SetInt(int64(val))
 		}
 	case BLIST:
 		for i, o := range list {
-			val, err := Get[[]*BObject](o)
-			if err != nil {
+			var val []*BObject
+			if err := GetValue(o, &list); err != nil {
 				return err
 			}
 			if v.Type().Elem().Kind() != reflect.Slice {
@@ -84,24 +85,24 @@ func unmarshalList(p reflect.Value, list []*BObject) error {
 			lp := reflect.New(v.Type().Elem())
 			ls := reflect.MakeSlice(v.Type().Elem(), len(val), len(val))
 			lp.Elem().Set(ls)
-			err = unmarshalList(lp, val)
-			if err != nil {
+
+			if err := unmarshalList(lp, val); err != nil {
 				return err
 			}
 			v.Index(i).Set(lp.Elem())
 		}
 	case BDICT:
 		for i, o := range list {
-			val, err := Get[map[string]*BObject](o)
-			if err != nil {
+			var val map[string]*BObject
+			if err := GetValue(o, &val); err != nil {
 				return err
 			}
 			if v.Type().Elem().Kind() != reflect.Struct {
 				return ErrType
 			}
 			dp := reflect.New(v.Type().Elem())
-			err = unmarshalDict(dp, val)
-			if err != nil {
+
+			if err := unmarshalDict(dp, val); err != nil {
 				return err
 			}
 			v.Index(i).Set(dp.Elem())
@@ -135,8 +136,8 @@ func unmarshalDict(p reflect.Value, dict map[string]*BObject) error {
 			if ft.Type.Kind() != reflect.String {
 				break
 			}
-			val, err := Get[string](fo)
-			if err != nil {
+			var val string
+			if err := GetValue(fo, &val); err != nil {
 				return err
 			}
 			fv.SetString(val)
@@ -144,24 +145,26 @@ func unmarshalDict(p reflect.Value, dict map[string]*BObject) error {
 			if ft.Type.Kind() != reflect.Int {
 				break
 			}
-			val, err := Get[int](fo)
-			if err != nil {
+
+			var val int
+			if err := GetValue(fo, &val); err != nil {
 				return err
 			}
+
 			fv.SetInt(int64(val))
 		case BLIST:
 			if ft.Type.Kind() != reflect.Slice {
 				break
 			}
-			list, err := Get[[]*BObject](fo)
-			if err != nil {
+			var list []*BObject
+			if err := GetValue(fo, &list); err != nil {
 				break
 			}
 			lp := reflect.New(ft.Type)
 			ls := reflect.MakeSlice(ft.Type, len(list), len(list))
 			lp.Elem().Set(ls)
-			err = unmarshalList(lp, list)
-			if err != nil {
+
+			if err := unmarshalList(lp, list); err != nil {
 				break
 			}
 			fv.Set(lp.Elem())
@@ -170,12 +173,13 @@ func unmarshalDict(p reflect.Value, dict map[string]*BObject) error {
 				break
 			}
 			dp := reflect.New(ft.Type)
-			dict, err := Get[map[string]*BObject](fo)
-			if err != nil {
+			var dict map[string]*BObject
+
+			if err := GetValue(fo, &dict); err != nil {
 				break
 			}
-			err = unmarshalDict(dp, dict)
-			if err != nil {
+
+			if err := unmarshalDict(dp, dict); err != nil {
 				break
 			}
 			fv.Set(dp.Elem())
