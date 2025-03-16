@@ -1,7 +1,6 @@
 package bencode
 
 import (
-	"errors"
 	"io"
 	"reflect"
 	"strings"
@@ -114,7 +113,7 @@ func unmarshalList(p reflect.Value, list []*BObject) error {
 // p.Kind() must be Ptr && p.Elem().Type().Kind() must be Struct
 func unmarshalDict(p reflect.Value, dict map[string]*BObject) error {
 	if p.Kind() != reflect.Ptr || p.Elem().Type().Kind() != reflect.Struct {
-		return errors.New("dest must be pointer")
+		return ErrNoPtr
 	}
 	v := p.Elem()
 	for i, n := 0, v.NumField(); i < n; i++ {
