@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+const (
+	BENCODE_TAG      = "bencode" // 解析结构体上的 TAG 标签
+	IGNORE_TAG_VALUE = "-"       // 忽略结构体上的字段
+)
+
 // 从 io.Reader 读数据绑定在结构体上
 func Unmarshal(r io.Reader, s any) error {
 	p := reflect.ValueOf(s)
@@ -122,10 +127,14 @@ func unmarshalDict(p reflect.Value, dict map[string]*BObject) error {
 			continue
 		}
 		ft := v.Type().Field(i)
-		key := ft.Tag.Get("bencode")
+		key := ft.Tag.Get(BENCODE_TAG)
+		if key == IGNORE_TAG_VALUE {
+			continue
+		}
 		if key == "" {
 			key = strings.ToLower(ft.Name)
 		}
+
 		fo := dict[key]
 		if fo == nil {
 			continue
@@ -239,10 +248,14 @@ func marshalDict(w io.Writer, vd reflect.Value) (int, error) {
 	for i := 0; i < vd.NumField(); i++ {
 		fv := vd.Field(i)
 		ft := vd.Type().Field(i)
-		key := ft.Tag.Get("bencode")
+		key := ft.Tag.Get(BENCODE_TAG)
+		if key == IGNORE_TAG_VALUE {
+			continue
+		}
 		if key == "" {
 			key = strings.ToLower(ft.Name)
 		}
+
 		n, err := EncodeString(w, key)
 		if err != nil {
 			return 0, err
