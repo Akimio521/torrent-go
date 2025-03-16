@@ -102,7 +102,7 @@ func DecodeInt(r io.Reader) (int, error) {
 	}
 
 	if b, err := br.ReadByte(); err != nil {
-		return 0, err
+		return 0, io.ErrUnexpectedEOF // 结尾 e 无法读取
 	} else if b != 'e' {
 		return 0, ErrInvalidIntFormat
 	}

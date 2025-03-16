@@ -35,7 +35,7 @@ func readInt(r *bufio.Reader) (int, error) {
 			if err == io.EOF {
 				switch {
 				case length == 0:
-					return 0, ErrUnexpectedEOF // 完全无输入
+					return 0, io.ErrUnexpectedEOF // 完全无输入
 				case initial && sign == -1:
 					return 0, ErrMissingDigits // 只有负号
 				default:
