@@ -5,6 +5,8 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"net/http"
+	"time"
 
 	"github.com/Akimio521/torrent-go/bencode"
 )
@@ -23,51 +25,96 @@ type RawInfo struct {
 }
 
 type TorrentFile struct {
-	Announce     string       `bencode:"announce"`      // 首选 tracker 地址 必选
-	Info         RawInfo      `bencode:"info"`          // 文件信息 必选
-	AnnounceList []string     `bencode:"announce-list"` // 备选 tracker 列表 可选
-	Comment      string       `bencode:"comment"`       // 备注 可选
-	CreatBy      string       `bencode:"created by"`    // 创建者信息 可选
-	infoSHA1     [SHALEN]byte `bencode:"-"`             // 用于存储 Info 的哈希
-	pieces       []byte       `bencode:"-"`             // Info.Pieces 的 []byte
+	Announce     string          `bencode:"announce"`      // 首选 tracker 地址 必选
+	Info         RawInfo         `bencode:"info"`          // 文件信息 必选
+	AnnounceList []string        `bencode:"announce-list"` // 备选 tracker 列表 可选
+	Comment      string          `bencode:"comment"`       // 备注 可选
+	CreatBy      string          `bencode:"created by"`    // 创建者信息 可选
+	infoSHA1     [sha1.Size]byte `bencode:"-"`             // 用于存储 Info 的哈希（种子的唯一标识）
 }
 
-var zeroSHA1 [20]byte // 零值
-// 获取种子的唯一标识
-func (tf *TorrentFile) GetInfoSHA1() ([SHALEN]byte, error) {
-	if tf.infoSHA1 == zeroSHA1 {
-		buf := new(bytes.Buffer)
-		_, err := bencode.Marshal(buf, tf.Info)
-		if err != nil {
-			fmt.Println("Fail to marshal raw file info")
-			return zeroSHA1, err
-		}
-		tf.infoSHA1 = sha1.Sum(buf.Bytes())
-	}
-	return tf.infoSHA1, nil
+// 获取种子的唯一标识（string）
+func (tf *TorrentFile) GetInfoSHA1() [sha1.Size]byte {
+	return tf.infoSHA1
 }
 
-// 获取指定区间 的 SHA1 值
-func (tf *TorrentFile) GetPieceSHA(num uint) [SHALEN]byte {
-	if tf.pieces == nil {
-		tf.pieces = []byte(tf.Info.Pieces)
+// 获取所有的 SHA1 值
+func (tf *TorrentFile) GetAllPieceSHA() [][sha1.Size]byte {
+	pieces := []byte(tf.Info.Pieces)
+	num := tf.GetPiecesNum()
+	hashes := make([][sha1.Size]byte, num)
+	for i := 0; i < num; i++ {
+		copy(hashes[i][:], pieces[i*sha1.Size:(i+1)*sha1.Size])
 	}
-	var hash [SHALEN]byte
-	copy(hash[:], tf.pieces[num*SHALEN:(num+1)*SHALEN])
-	return hash
+	return hashes
 }
 
-// 计算 PieceSHA 的数量
-func (tf *TorrentFile) GetPieceLen() uint {
-	if tf.pieces == nil {
-		tf.pieces = []byte(tf.Info.Pieces)
+// 计算 Pieces 的数量
+func (tf *TorrentFile) GetPiecesNum() int {
+	return len(tf.Info.Pieces) / sha1.Size
+}
+
+// 向 TorrentFile 中的 Tracker 发送请求获取 Peer 列表
+func (tf *TorrentFile) FindPeers(peerID [PEER_ID_LEN]byte, port uint16) ([]PeerInfo, error) {
+	url, err := buildUrl(tf, peerID, port)
+	if err != nil {
+		return nil, fmt.Errorf("build tracker URL error: %s", err.Error())
 	}
-	return uint(len(tf.pieces) / SHALEN)
+	// fmt.Println(url)
+
+	client := http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("fail to connect to tracker: %s", err.Error())
+	}
+	defer resp.Body.Close()
+
+	trackerResp := new(TrackerResponse)
+	bs, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read tracker response error: %s", err.Error())
+	}
+	if err = bencode.Unmarshal(bytes.NewBuffer(bs), trackerResp); err != nil {
+		return nil, fmt.Errorf("unmarshal tracker response error: %s", err.Error())
+	}
+
+	return trackerResp.ParsePeerInfos()
+}
+
+// 获取种子文件转的任务
+func (tf *TorrentFile) GetTask(peerID [PEER_ID_LEN]byte, port uint16) (*TorrentTask, error) {
+	peers, err := tf.FindPeers(peerID, port)
+	if err != nil {
+		return nil, fmt.Errorf("find peers faild: %s", err.Error())
+	}
+	if len(peers) == 0 {
+		return nil, fmt.Errorf("can not find peers")
+	}
+	return &TorrentTask{
+		PeerId:   peerID,
+		PeerList: peers,
+		InfoSHA:  tf.GetInfoSHA1(),
+		FileName: tf.Info.Name,
+		FileLen:  tf.Info.Length,
+		PieceLen: tf.Info.PiceLength,
+		PieceSHA: tf.GetAllPieceSHA(),
+	}, nil
 }
 
 // 解析种子文件
 func ParseFile(r io.Reader) (*TorrentFile, error) {
 	tf := new(TorrentFile)
-	err := bencode.Unmarshal(r, tf)
+	bObj, err := bencode.Parse(r)
+	if err != nil {
+		return nil, err
+	}
+	if err = bencode.UnmarshalBObject(bObj, tf); err != nil {
+		return nil, err
+	}
+	info, err := bObj.GetDictKeyDay("info")
+	if err != nil {
+		return nil, err
+	}
+	tf.infoSHA1 = sha1.Sum(info)
 	return tf, err
 }
