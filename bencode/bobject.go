@@ -2,6 +2,8 @@ package bencode
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"io"
 )
 
@@ -110,6 +112,22 @@ func (o *BObject) Bencode(w io.Writer) (int, error) {
 	}
 	bw.Flush()
 	return wLen, nil
+}
+
+func (bObj *BObject) GetDictKeyDay(keyName string) ([]byte, error) {
+	if bObj.GetBType() != BDICT {
+		return nil, errors.New("not a dict")
+	}
+	dict := make(map[string]*BObject)
+	GetValue(bObj, &dict)
+	if v, ok := dict[keyName]; ok {
+		buf := new(bytes.Buffer)
+		if _, err := v.Bencode(buf); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	}
+	return nil, errors.New("key not found")
 }
 
 func GetBObject[T allowedTypes](v T) *BObject {

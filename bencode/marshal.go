@@ -11,18 +11,12 @@ const (
 	IGNORE_TAG_VALUE = "-"       // 忽略结构体上的字段
 )
 
-// 从 io.Reader 读数据绑定在结构体上
-func Unmarshal(r io.Reader, s any) error {
+// 从 BObject 中读取数据绑定在结构体上
+func UnmarshalBObject(o *BObject, s any) error {
 	p := reflect.ValueOf(s)
 	if p.Kind() != reflect.Ptr {
 		return ErrNoPtr
 	}
-
-	o, err := Parse(r)
-	if err != nil {
-		return err
-	}
-
 	switch o.GetBType() {
 	case BLIST:
 		var list []*BObject
@@ -33,7 +27,7 @@ func Unmarshal(r io.Reader, s any) error {
 		l := reflect.MakeSlice(p.Elem().Type(), len(list), len(list))
 		p.Elem().Set(l)
 
-		if err = unmarshalList(p, list); err != nil {
+		if err := unmarshalList(p, list); err != nil {
 			return err
 		}
 	case BDICT:
@@ -42,13 +36,25 @@ func Unmarshal(r io.Reader, s any) error {
 			return err
 		}
 
-		if err = unmarshalDict(p, dict); err != nil {
+		if err := unmarshalDict(p, dict); err != nil {
 			return err
 		}
 	default:
 		return ErrSrcMustBeStructOrSlice
 	}
 	return nil
+}
+
+// 从 io.Reader 读数据绑定在结构体上
+func Unmarshal(r io.Reader, s any) error {
+	if p := reflect.ValueOf(s); p.Kind() != reflect.Ptr {
+		return ErrNoPtr
+	}
+	o, err := Parse(r)
+	if err != nil {
+		return err
+	}
+	return UnmarshalBObject(o, s)
 }
 
 // p.Kind must be Ptr && p.Elem().Type().Kind() must be Slice
