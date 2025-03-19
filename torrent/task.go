@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
-	"os"
+	"sync/atomic"
 )
 
 type TorrentTask struct { // 种子任务
@@ -17,40 +17,48 @@ type TorrentTask struct { // 种子任务
 	PieceSHA [][sha1.Size]byte // 所有 Piece 的 SHA-1 哈希值
 }
 
-func (t *TorrentTask) peerRoutine(peer PeerInfo, taskQueue chan *PieceTask, resultQueue chan *PieceResult) {
+func (t *TorrentTask) peerRoutine(peer PeerInfo, taskChan chan *PieceTask, ctx *Context) {
 	// set up conn with peer
 	conn, err := peer.NewConn(t.InfoSHA, t.PeerId)
 	if err != nil {
-		fmt.Printf("connect peer %s failed: %s\n", peer.IP.String(), err.Error())
+		ctx.errChan <- fmt.Errorf("connect peer %s failed: %s", peer.IP.String(), err.Error())
 		return
 	}
 	defer conn.Close()
 
-	fmt.Println("complete handshake with peer : " + peer.IP.String())
+	ctx.rwm.Lock()
+	ctx.peerInfos = append(ctx.peerInfos, peer)
+	ctx.rwm.Unlock()
+
 	conn.WriteMsg(&PeerMsg{MsgInterested, nil})
 	// get piece task & download
-	for task := range taskQueue {
+	for task := range taskChan {
 		if !conn.Field.HasPiece(task.Index) {
-			taskQueue <- task
+			taskChan <- task
 			continue
 		}
-		fmt.Printf("get task, index: %v, peer : %v\n", task.Index, peer.IP.String())
 		res, err := conn.DownloadPiece(task)
 		if err != nil {
-			taskQueue <- task
-			fmt.Println("fail to download piece" + err.Error())
+			taskChan <- task
+			ctx.errChan <- fmt.Errorf("fail to download piece" + err.Error())
 			return
 		}
 		if !task.CheckPiece(res) {
-			taskQueue <- task
+			taskChan <- task
+			ctx.errChan <- fmt.Errorf("check piece failed")
 			continue
 		}
-		resultQueue <- res
+		ctx.resultChan <- res
+		atomic.AndUint64(&ctx.successedBtye, uint64(len(res.Data)))
+		atomic.AddUint64(&ctx.successedPieceNum, 1)
+		if atomic.LoadUint64(&ctx.successedPieceNum) == uint64(len(t.PieceSHA)) {
+			ctx.Finish()
+		}
 	}
 }
 
 // 获取 Piece 的起始和结束位置
-func (t *TorrentTask) getPieceBounds(index int) (bengin, end int) {
+func (t *TorrentTask) GetPieceBounds(index int) (bengin int, end int) {
 	bengin = index * t.PieceLen
 	end = bengin + t.PieceLen
 	if end > t.FileLen {
@@ -60,44 +68,19 @@ func (t *TorrentTask) getPieceBounds(index int) (bengin, end int) {
 }
 
 // 下载种子任务
-func (task *TorrentTask) Download() error {
-	fmt.Println("start downloading " + task.FileName)
-	// split pieceTasks and init task&result channel
+func (task *TorrentTask) Download() *Context {
+	ctx := newContext()
 	taskChan := make(chan *PieceTask, len(task.PieceSHA))
-	resultChan := make(chan *PieceResult)
+
 	for index, sha := range task.PieceSHA {
-		begin, end := task.getPieceBounds(index)
+		begin, end := task.GetPieceBounds(index)
 		taskChan <- &PieceTask{index, sha, (end - begin)}
 	}
 	// init goroutines for each peer
 	for _, peer := range task.PeerList {
-		go task.peerRoutine(peer, taskChan, resultChan)
+		go task.peerRoutine(peer, taskChan, ctx)
 	}
-	// collect piece result
-	buf := make([]byte, task.FileLen)
-	count := 0
-	for count < len(task.PieceSHA) {
-		res := <-resultChan
-		begin, end := task.getPieceBounds(res.Index)
-		copy(buf[begin:end], res.Data)
-		count++
-		// print progress
-		percent := float64(count) / float64(len(task.PieceSHA)) * 100
-		fmt.Printf("downloading, progress : (%0.2f%%)\n", percent)
-	}
-	close(taskChan)
-	close(resultChan)
-	// create file & copy data
-	file, err := os.Create(task.FileName)
-	if err != nil {
-		return fmt.Errorf("create %s faild: %s", task.FileName, err.Error())
-	}
-	defer file.Close()
-
-	if _, err = file.Write(buf); err != nil {
-		return fmt.Errorf("write data faild: %s", err.Error())
-	}
-	return nil
+	return ctx
 }
 
 type PieceTask struct { // Piece 任务

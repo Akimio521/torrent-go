@@ -35,4 +35,5 @@ var (
 	ErrMalformedPeersFormat = errors.New("malformed peers format") // 错误 Peers 格式
 	ErrZeroPrelen           = errors.New("prelen cannot be 0")     // 握手消息中 prelen 不能为0
 	ErrCheckInfoSHAFaild    = errors.New("check handshake failed") // 检查 InfoSHA 失败
+	ErrNoImplement          = errors.New("no implement")           // 未实现
 )
