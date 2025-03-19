@@ -1,6 +1,7 @@
 package torrent
 
 import (
+	"bufio"
 	"crypto/sha1"
 	"io"
 )
@@ -19,15 +20,25 @@ func NewHandShakeMsg(infoSHA, peerId [PEER_ID_LEN]byte) *HandshakeMsg {
 	}
 }
 
-func (msg *HandshakeMsg) WriteHandShakeMsg(w io.Writer) (int, error) {
-	buf := make([]byte, len(msg.PreStr)+HS_MSG_LEN+1) // 1 byte for prelen
-	buf[0] = byte(len(msg.PreStr))
-	curr := 1
-	curr += copy(buf[curr:], []byte(msg.PreStr))
-	curr += copy(buf[curr:], make([]byte, RESERVED_LEN))
-	curr += copy(buf[curr:], msg.InfoSHA[:])
-	curr += copy(buf[curr:], msg.PeerId[:])
-	return w.Write(buf)
+func (msg *HandshakeMsg) WriteHandShakeMsg(w io.Writer) error {
+	bw := bufio.NewWriterSize(w, 1+len(msg.PreStr)+HS_MSG_LEN) // 1 byte for prelen
+	defer bw.Flush()
+	if err := bw.WriteByte(byte(len(msg.PreStr))); err != nil { // prelen
+		return err
+	}
+	if _, err := bw.WriteString(msg.PreStr); err != nil { // 协议 prestr
+		return err
+	}
+	if _, err := bw.Write(make([]byte, RESERVED_LEN)); err != nil { // 保留字段
+		return err
+	}
+	if _, err := bw.Write(msg.InfoSHA[:]); err != nil { // infoSHA
+		return err
+	}
+	if _, err := bw.Write(msg.PeerId[:]); err != nil { // peerId
+		return err
+	}
+	return nil
 }
 
 func ReadHandshake(r io.Reader) (*HandshakeMsg, error) {

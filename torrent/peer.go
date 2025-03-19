@@ -26,7 +26,7 @@ func handshake(conn net.Conn, infoSHA [sha1.Size]byte, peerId [PEER_ID_LEN]byte)
 	// send HandshakeMsg
 	reqMsg := NewHandShakeMsg(infoSHA, peerId)
 
-	if _, err := reqMsg.WriteHandShakeMsg(conn); err != nil {
+	if err := reqMsg.WriteHandShakeMsg(conn); err != nil {
 		return fmt.Errorf("send handshake failed: %s", err.Error())
 	}
 	// read HandshakeMsg
