@@ -13,6 +13,48 @@ This repository contains a Go implementation of a BitTorrent client library, sup
 
 ---
 
+## Features  
+- **Bencode Support**: Full encoding/decoding of Bencode data structures.  
+- **Torrent Parsing**: Extract metadata and piece hashes from `.torrent` files.  
+- **Peer Discovery**: Query trackers for peer lists.  
+- **Parallel Downloading**: Multi-piece downloading with SHA-1 validation.  
+- **Progress Tracking**: Real-time progress monitoring via `Context`.  
+
+---
+
+## Usage Example  
+```go  
+file, _ := os.Open("example.torrent")  
+tf, _ := torrent.ParseFile(file)
+var peerId [torrent.PEER_ID_LEN]byte // radom Generate Peer ID
+_, _ = rand.Read(peerId[:])
+task, _ := tf.GetTask(peerID, 6881)
+file.close()
+
+file, err := os.Create(task.FileName)
+if err != nil {
+  fmt.Println("fail to create file: " + task.FileName)
+  os.Exit(1)
+}
+defer file.Close()
+
+if err = file.Truncate(int64(task.FileLen)); err != nil {
+    fmt.Printf("fail to allocate disk space: %v\n", err)
+    os.Exit(1)
+}
+
+ctx := task.Download()
+for res := range ctx.GetResult() {
+    begin, _ := task.GetPieceBounds(res.Index)
+    if _, err := file.WriteAt(res.Data, int64(begin)); err != nil {
+        fmt.Printf("fail to write piece %d: %v\n", res.Index, err)
+        os.Exit(1)
+    }
+}
+```
+
+---
+
 ## Packages  
 
 ### `bencode` Package  
@@ -62,45 +104,3 @@ Handles torrent file parsing, peer discovery, and download management.
 
 ### `cmd` Package  
 Contains example implementations and CLI tools demonstrating library usage.  
-
----
-
-## Features  
-- **Bencode Support**: Full encoding/decoding of Bencode data structures.  
-- **Torrent Parsing**: Extract metadata and piece hashes from `.torrent` files.  
-- **Peer Discovery**: Query trackers for peer lists.  
-- **Parallel Downloading**: Multi-piece downloading with SHA-1 validation.  
-- **Progress Tracking**: Real-time progress monitoring via `Context`.  
-
----
-
-## Usage Example  
-``go  
-file, _ := os.Open("example.torrent")  
-tf, _ := torrent.ParseFile(file)
-var peerId [torrent.PEER_ID_LEN]byte // radom Generate Peer ID
-_, _ = rand.Read(peerId[:])
-task, _ := tf.GetTask(peerID, 6881)
-file.close()
-
-file, err := os.Create(task.FileName)
-if err != nil {
-  fmt.Println("fail to create file: " + task.FileName)
-  os.Exit(1)
-}
-defer file.Close()
-
-if err = file.Truncate(int64(task.FileLen)); err != nil {
-    fmt.Printf("fail to allocate disk space: %v\n", err)
-    os.Exit(1)
-}
-
-ctx := task.Download()
-for res := range ctx.GetResult() {
-    begin, _ := task.GetPieceBounds(res.Index)
-    if _, err := file.WriteAt(res.Data, int64(begin)); err != nil {
-        fmt.Printf("fail to write piece %d: %v\n", res.Index, err)
-        os.Exit(1)
-    }
-}
-``

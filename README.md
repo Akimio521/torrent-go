@@ -13,6 +13,47 @@
 
 ---
 
+## 功能特点
+- **Bencode 编解码**：对 Bencode 数据结构进行完整的编码和解码。
+- **种子文件解析**：从 `.torrent` 文件中提取元数据和数据块哈希值。
+- **对端节点发现**：向追踪服务器查询对等节点列表。
+- **并行下载**：进行多数据块下载，并通过 SHA-1 进行验证。
+- **进度跟踪**：通过 `Context` 实现实时的进度监控。
+- 
+---
+
+## 使用例子 
+```go  
+file, _ := os.Open("example.torrent")  
+tf, _ := torrent.ParseFile(file)
+var peerId [torrent.PEER_ID_LEN]byte // radom Generate Peer ID
+_, _ = rand.Read(peerId[:])
+task, _ := tf.GetTask(peerID, 6881)
+file.close()
+
+file, err := os.Create(task.FileName)
+if err != nil {
+  fmt.Println("fail to create file: " + task.FileName)
+  os.Exit(1)
+}
+defer file.Close()
+
+if err = file.Truncate(int64(task.FileLen)); err != nil {
+    fmt.Printf("fail to allocate disk space: %v\n", err)
+    os.Exit(1)
+}
+
+ctx := task.Download()
+for res := range ctx.GetResult() {
+    begin, _ := task.GetPieceBounds(res.Index)
+    if _, err := file.WriteAt(res.Data, int64(begin)); err != nil {
+        fmt.Printf("fail to write piece %d: %v\n", res.Index, err)
+        os.Exit(1)
+    }
+}
+```
+---
+
 ## 包  
 ## `bencode` 包
 实现了 Bencode 编码/解码（BitTorrent 的数据序列化格式）。 
@@ -27,7 +68,7 @@
 - **序列化与反序列化**:
   - `func Unmarshal(r io.Reader, s any) error`: 从 io.Reader 读 bencode 数据绑定在数据结构上
   - `func Marshal(w io.Writer, s any) (int, error)`: 将数据结构转换成 bencode 输出到 io.Wirter 中
-- other: 工具包，底层函数
+- **工具包、底层函数**
   - `func EncodeString(w io.Writer, val string) (int, error)`: 编码一个字符串写入 io.Writer
   - `func DecodeString(r io.Reader) (string, error)`: 从 io.Reader 读数据并解码成字符串
   - `func EncodeInt(w io.Writer, val int) (int, error)`: 编码一个整数写入 io.Writer
@@ -70,45 +111,3 @@
 
 ## `cmd` 包
 一些简单的实例代码
-
----
-
-## 功能特点
-- **Bencode 编解码**：对 Bencode 数据结构进行完整的编码和解码。
-- **种子文件解析**：从 `.torrent` 文件中提取元数据和数据块哈希值。
-- **对端节点发现**：向追踪服务器查询对等节点列表。
-- **并行下载**：进行多数据块下载，并通过 SHA-1 进行验证。
-- **进度跟踪**：通过 `Context` 实现实时的进度监控。
-
----
-
-## 使用例子 
-```go  
-file, _ := os.Open("example.torrent")  
-tf, _ := torrent.ParseFile(file)
-var peerId [torrent.PEER_ID_LEN]byte // radom Generate Peer ID
-_, _ = rand.Read(peerId[:])
-task, _ := tf.GetTask(peerID, 6881)
-file.close()
-
-file, err := os.Create(task.FileName)
-if err != nil {
-  fmt.Println("fail to create file: " + task.FileName)
-  os.Exit(1)
-}
-defer file.Close()
-
-if err = file.Truncate(int64(task.FileLen)); err != nil {
-    fmt.Printf("fail to allocate disk space: %v\n", err)
-    os.Exit(1)
-}
-
-ctx := task.Download()
-for res := range ctx.GetResult() {
-    begin, _ := task.GetPieceBounds(res.Index)
-    if _, err := file.WriteAt(res.Data, int64(begin)); err != nil {
-        fmt.Printf("fail to write piece %d: %v\n", res.Index, err)
-        os.Exit(1)
-    }
-}
-```
