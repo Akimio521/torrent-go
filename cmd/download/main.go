@@ -11,6 +11,24 @@ import (
 	"github.com/Akimio521/torrent-go/torrent"
 )
 
+const (
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorReset  = "\033[0m"
+)
+
+// 根据速度自动选择单位（KB/MB/GB）
+func formatSpeed(speedKB float64) string {
+	switch {
+	case speedKB >= 1024*1024:
+		return fmt.Sprintf("%s%.2f GB/s%s", colorGreen, speedKB/(1024*1024), colorReset)
+	case speedKB >= 1024:
+		return fmt.Sprintf("%s%.2f MB/s%s", colorYellow, speedKB/1024, colorReset)
+	default:
+		return fmt.Sprintf("%s%.2f KB/s%s", colorRed, speedKB, colorReset)
+	}
+}
 func main() {
 	filePath := flag.String("file", "", "Path to the torrent file")
 	port := flag.Uint("port", 6881, "Port to listen on")
@@ -69,7 +87,7 @@ func main() {
 				processPercentage := int(float64(successedPieceNum) / float64(totalPieces) * 100)
 				fmt.Print("\033[H\033[2J") // 清屏
 				speed := float64(succeededByte) / 1024 / time.Since(startTime).Seconds()
-				fmt.Printf("\r[%-101s] %3d%% %8d/%d %.2f Kib/s\n", strings.Repeat(">", processPercentage)+"🚀", processPercentage, successedPieceNum, totalPieces, speed)
+				fmt.Printf("\r[%-101s] %3d%% %8d/%d %s\n", strings.Repeat(">", processPercentage)+"🚀", processPercentage, successedPieceNum, totalPieces, formatSpeed(speed))
 				// 打印 Error 信息
 				for _, err := range errBuffer {
 					fmt.Println(err)
