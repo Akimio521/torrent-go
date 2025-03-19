@@ -8,13 +8,13 @@ import (
 )
 
 type Context struct {
-	doneChan          chan struct{}     // 任务完成的通知
-	resultChan        chan *PieceResult // 下载 Piece 结果通道
-	errChan           chan error        // 错误通知通道
-	rwm               sync.RWMutex      // peerInfos 读写锁
-	peerInfos         []PeerInfo        // 正在下载的 Peer 列表
-	successedBtye     uint64            // 已下载大小
-	successedPieceNum uint64            // 已下载 Piece 数量
+	doneChan      chan struct{}     // 任务完成的通知
+	resultChan    chan *PieceResult // 下载 Piece 结果通道
+	errChan       chan error        // 错误通知通道
+	rwm           sync.RWMutex      // peerInfos 读写锁
+	peerInfos     []PeerInfo        // 正在下载的 Peer 列表
+	currentBytes  uint64            // 当前已成功已下载大小
+	currentPieces uint64            // 当前已下载 Piece 数量
 }
 
 // 生成一个新的 Context
@@ -58,9 +58,7 @@ func (ctx *Context) GetPeerInfos() []PeerInfo {
 
 // 获取正在下载进度（已下载大小和已下载片数）
 func (ctx *Context) GetProcess() (uint64, uint64) {
-	successedBtye := atomic.LoadUint64(&ctx.successedBtye)
-	successedPieceNum := atomic.LoadUint64(&ctx.successedPieceNum)
-	return successedBtye, successedPieceNum
+	return atomic.LoadUint64(&ctx.currentBytes), atomic.LoadUint64(&ctx.currentBytes)
 }
 
 func (ctx *Context) GetResult() <-chan *PieceResult {

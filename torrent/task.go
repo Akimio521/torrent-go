@@ -49,9 +49,9 @@ func (t *TorrentTask) peerRoutine(peer PeerInfo, taskChan chan *PieceTask, ctx *
 			continue
 		}
 		ctx.resultChan <- res
-		atomic.AddUint64(&ctx.successedBtye, uint64(len(res.Data)))
-		atomic.AddUint64(&ctx.successedPieceNum, 1)
-		if atomic.LoadUint64(&ctx.successedPieceNum) == uint64(len(t.PieceSHA)) {
+		atomic.AddUint64(&ctx.currentBytes, uint64(len(res.Data)))
+		atomic.AddUint64(&ctx.currentPieces, 1)
+		if atomic.LoadUint64(&ctx.currentPieces) == uint64(len(t.PieceSHA)) {
 			ctx.Finish()
 		}
 	}
