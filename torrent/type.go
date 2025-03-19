@@ -12,6 +12,7 @@ const (
 	HS_MSG_LEN        int    = RESERVED_LEN + sha1.Size + PEER_ID_LEN // 握手消息长度
 	PORT_LEN          int    = 2                                      // 端口长度
 	PEER_V4_LEN       int    = net.IPv4len + PORT_LEN                 // Peer 长度（IPv4）
+	PEER_V6_LEN       int    = net.IPv6len + PORT_LEN                 // Peer 长度（IPv6）
 	PEER_MSG_HEAD_LEN uint32 = 4                                      // Peer 消息头长度（消息头用于存储消息长度（不包括消息头））
 	BLOCK_SIZE               = 16 * 1024                              // 块大小（16KB）
 	MAX_BACKLOG              = 5                                      // 最大并发度（同一个 Peer）

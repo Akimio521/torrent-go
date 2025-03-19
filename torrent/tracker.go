@@ -21,20 +21,46 @@ func (pi *PeerInfo) GetConnAddr() string {
 type TrackerResponse struct { // Tracker 响应
 	Interval int    `bencode:"interval"` // 间隔时间
 	Peers    string `bencode:"peers"`    // Peer 列表
+	Peers6   string `bencode:"peers6"`   // Peer 列表（IPv6）
 }
 
 // 解析 Tracker 响应中的 Peers 信息，返回 PeerInfo 列表
 func (tr *TrackerResponse) ParsePeerInfos() ([]PeerInfo, error) {
 	peers := []byte(tr.Peers)
-	num := len(peers) / PEER_V4_LEN
+	peers6 := []byte(tr.Peers6)
+
+	// 校验数据完整性
 	if len(peers)%PEER_V4_LEN != 0 {
-		return nil, ErrMalformedPeersFormat
+		return nil, fmt.Errorf("%w: IPv4 peers length %d not divisible by %d",
+			ErrMalformedPeersFormat, len(peers), PEER_V4_LEN)
 	}
-	peerInfos := make([]PeerInfo, num)
-	for i := 0; i < num; i++ {
+	if len(peers6)%PEER_V6_LEN != 0 {
+		return nil, fmt.Errorf("%w: IPv6 peers length %d not divisible by %d",
+			ErrMalformedPeersFormat, len(peers6), PEER_V6_LEN)
+	}
+
+	v4num := len(peers) / PEER_V4_LEN
+	v6num := len(peers6) / PEER_V6_LEN
+
+	// 正确初始化切片（容量预分配）
+	peerInfos := make([]PeerInfo, 0, v4num+v6num)
+
+	// 处理 IPv4 Peers
+	for i := 0; i < v4num; i++ {
 		offset := i * PEER_V4_LEN
-		peerInfos[i].IP = net.IP(peers[offset : offset+net.IPv4len])
-		peerInfos[i].Port = binary.BigEndian.Uint16(peers[offset+net.IPv4len : offset+PEER_V4_LEN])
+		peerInfos = append(peerInfos, PeerInfo{
+			IP:   net.IP(peers[offset : offset+net.IPv4len]),
+			Port: binary.BigEndian.Uint16(peers[offset+net.IPv4len : offset+PEER_V4_LEN]),
+		})
+	}
+
+	// 处理 IPv6 Peers
+	for i := 0; i < v6num; i++ {
+		offset := i * PEER_V6_LEN
+		peerInfos = append(peerInfos, PeerInfo{
+			IP:   net.IP(peers6[offset : offset+net.IPv6len]),
+			Port: binary.BigEndian.Uint16(peers6[offset+net.IPv6len : offset+PEER_V6_LEN]),
+		})
 	}
 	return peerInfos, nil
 }
